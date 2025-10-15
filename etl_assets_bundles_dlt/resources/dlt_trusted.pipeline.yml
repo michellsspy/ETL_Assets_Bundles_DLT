@@ -10,6 +10,6 @@ resources:
       serverless: true
       libraries:
         - notebook:
-            path: "" #../src/raw/consumos/dlt.py
+            path: "../src/raw/consumos/dlt.py"
       development: true
       continuous: false
