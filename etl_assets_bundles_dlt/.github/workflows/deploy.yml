@@ -1,41 +1,30 @@
-# .github/workflows/deploy.yml
-name: Validar, Construir e Implementar Bundle no Databricks
+# .github/workflows/deploy.yml (VERSÃO COM --auto-approve)
+name: Validar e Implementar Bundle no Databricks
 
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
-    env:
-      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-
     steps:
-      # Passo 1: Faz o checkout do código do repositório
       - name: Checkout código
         uses: actions/checkout@v4
 
-      # ================== PASSO DE DEPURAÇÃO ==================
-      # Documentação:
-      # Este passo foi adicionado para nos ajudar a entender a estrutura de pastas.
-      # O comando 'ls -R' lista todos os arquivos e diretórios a partir da raiz
-      # do projeto. Isso nos mostrará o caminho exato para o databricks.yml.
-      - name: Listar arquivos para depuração
-        run: ls -R
-      # =======================================================
-
-      # Passo 2: Instala a CLI unificada do Databricks
       - name: Instalar Databricks CLI
         run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sudo sh
-      
-      # Passo 3: Valida, Constrói e Implementa o Bundle
-      - name: Validar, Construir e Implementar o Bundle
-        working-directory: ./etl_assets_bundles_dlt
-        run: |
-          databricks bundle validate
-          databricks bundle build
-          databricks bundle deploy -t dev --auto-approve
+
+      - name: Validar o Databricks Bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate
+
+      - name: Implementar o Databricks Bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        # MUDANÇA: Adicionamos a bandeira --auto-approve
+        run: databricks bundle deploy -t dev --auto-approve
