@@ -1,0 +1,46 @@
+# .github/workflows/deploy.yml
+name: Validar, Construir e Implementar Bundle no Databricks
+
+# Documentação:
+# O workflow é acionado sempre que um novo commit é enviado (push) para a branch 'main'.
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    # Documentação:
+    # As credenciais são definidas aqui, a nível de 'job'.
+    # Isso evita repetição e torna o workflow mais limpo.
+    # Todos os steps abaixo terão acesso a estas variáveis de ambiente.
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+    steps:
+      # Passo 1: Faz o checkout do código do repositório
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      # Passo 2: Instala a CLI unificada do Databricks (o método correto)
+      # Documentação:
+      # Este comando usa o script oficial da Databricks para instalar a versão
+      # mais recente da CLI, que inclui o comando 'bundle'.
+      - name: Instalar Databricks CLI
+        run: curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sudo sh
+      
+      # Passo 3: Valida, Constrói e Implementa o Bundle
+      # Documentação:
+      # Este step executa a sequência completa necessária para o deploy.
+      # 1. 'validate': Verifica se a configuração do bundle está correta.
+      # 2. 'build': Empacota o código Python em um arquivo .whl (resolve o erro original).
+      # 3. 'deploy': Envia o bundle para o Databricks. O '--auto-approve' confirma
+      #    automaticamente, o que é ideal para pipelines de automação.
+      - name: Validar, Construir e Implementar o Bundle
+        run: |
+          databricks bundle validate
+          databricks bundle build
+          databricks bundle deploy -t dev --auto-approve
