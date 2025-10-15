@@ -1,4 +1,4 @@
-# databricks.yml (VERSÃO FINAL ULTRA MODULARIZADA)
+# databricks.yml 
 bundle:
   name: etl_assets_bundles_dlt
 
