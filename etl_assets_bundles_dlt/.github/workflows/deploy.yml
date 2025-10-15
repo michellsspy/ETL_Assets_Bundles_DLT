@@ -34,7 +34,7 @@ jobs:
       
       # Passo 3: Valida, Constrói e Implementa o Bundle
       - name: Validar, Construir e Implementar o Bundle
-        working-directory: . #/etl_assets_bundles_dlt
+        working-directory: ./etl_assets_bundles_dlt/
         run: |
           databricks bundle validate
           databricks bundle build
