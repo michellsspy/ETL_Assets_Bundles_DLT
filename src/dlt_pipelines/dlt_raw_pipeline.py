@@ -22,9 +22,9 @@ def hospedes_raw():
 def reservas_raw():
   return spark.readStream.table("production.transient.source_reservas")
 
-@dlt.table(name="reservas_canal_raw", comment="Log incremental de canais de reserva.")
-def reservas_canal_raw():
-  return spark.readStream.table("production.transient.source_reservas_canal")
+@dlt.table(name="reservas_ota_raw", comment="Log incremental de canais de reserva.")
+def reservas_ota_raw():
+  return spark.readStream.table("production.transient.source_reservas_ota")
 
 @dlt.table(name="consumos_raw", comment="Log incremental de consumos.")
 def consumos_raw():
