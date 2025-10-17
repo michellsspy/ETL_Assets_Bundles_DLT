@@ -1,4 +1,4 @@
-# Célula 1: Instalações e Imports
+# Célula 1: Instalações e Imports (Sem alterações)
 # !pip install Faker names
 
 import random
@@ -18,7 +18,7 @@ spark = SparkSession.builder.appName("GeracaoDadosHotelaria").getOrCreate()
 
 print("Faker e Spark inicializados.")
 
-# Célula 2: Funções de Geração - HOTEIS (Mais Enriquecida)
+# Célula 2: Funções de Geração - HOTEIS (Sem alterações)
 def gerar_hoteis(num_hoteis=50):
     COMODIDADES = ['Wi-Fi Grátis', 'Piscina', 'Academia', 'Spa', 'Estacionamento', 'Restaurante', 'Bar', 'Serviço de Quarto', 'Centro de Convenções', 'Pet Friendly']
     PREFIXOS = ['Grand', 'Royal', 'Plaza', 'Imperial', 'Golden', 'Paradise', 'Ocean']
@@ -94,7 +94,7 @@ def gerar_hoteis(num_hoteis=50):
     df = spark.createDataFrame(hoteis_data, schema)
     return df
 
-# Célula 3: Funções de Geração - QUARTOS (Mais Enriquecida)
+# Célula 3: Funções de Geração - QUARTOS (Sem alterações)
 def gerar_quartos(df_hoteis):
     TIPOS_QUARTO = {
         'Standard': {'capacidade': [1, 2], 'percentual': 0.50, 'preco_base': 250.0},
@@ -184,7 +184,7 @@ def gerar_quartos(df_hoteis):
     
     return spark.createDataFrame(quartos_data, schema)
 
-# Célula 4: Funções de Geração - HÓSPEDES (Mais Enriquecida)
+# Célula 4: Funções de Geração - HÓSPEDES (Sem alterações)
 def gerar_hospedes(num_hospedes=8000):
     
     PROGRAMAS_FIDELIDADE = ['Bronze', 'Prata', 'Gold', 'Platinum']
@@ -255,10 +255,12 @@ def gerar_hospedes(num_hospedes=8000):
     
     return spark.createDataFrame(hospedes_data, schema)
 
-# Célula 5: Funções de Geração - RESERVAS, CONSUMOS e FATURAS (Mais Enriquecida)
+# Célula 5: Funções de Geração - RESERVAS, CONSUMOS, FATURAS e RESERVAS_OTA (MODIFICADA)
 def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
     
     CANAIS = ['Website Hotel', 'Booking.com', 'Expedia', 'Telefone', 'Balcão', 'Agência de Viagem']
+    # NOVO: Lista de canais que são OTAs
+    OTAS = ['Booking.com', 'Expedia'] 
     
     SERVICOS = [
         ('Restaurante - Jantar', 120.0),
@@ -271,9 +273,9 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
         ('Tratamento Facial', 180.0),
         ('Lavanderia - Peça', 20.0),
         ('Estacionamento - Diária', 40.0),
-        ('Translado Aeroporto', 80.0),      # Novo serviço
-        ('Passeio Guiado', 150.0),          # Novo serviço
-        ('Aluguel de Carro', 200.0)         # Novo serviço
+        ('Translado Aeroporto', 80.0),
+        ('Passeio Guiado', 150.0),
+        ('Aluguel de Carro', 200.0)
     ]
     
     FIDELIDADE_DESCONTOS = {'Bronze': 0.0, 'Prata': 0.05, 'Gold': 0.10, 'Platinum': 0.15}
@@ -290,9 +292,11 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
     reservas_data = []
     consumos_data = []
     faturas_data = []
+    reservas_ota_data = [] # NOVO: Lista para a nova tabela
     
     consumo_id_global = 50001
     fatura_id_global = 9001
+    ota_reserva_id_global = 7001 # NOVO: ID Global para a nova tabela
 
     for i in range(num_reservas):
         reserva_id = 10001 + i
@@ -331,28 +335,59 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
 
         # Dados da Reserva
         valor_base_estadia = num_noites * quarto_selecionado['preco_diaria_base']
-        taxa_limpeza = round(valor_base_estadia * 0.02, 2)  # Nova coluna
-        taxa_turismo = round(valor_base_estadia * 0.03, 2)  # Nova coluna
+        taxa_limpeza = round(valor_base_estadia * 0.02, 2)
+        taxa_turismo = round(valor_base_estadia * 0.03, 2)
+        canal_reserva = random.choice(CANAIS) # Define o canal
         
         reservas_data.append((
             reserva_id, hospede_id, quarto_selecionado['quarto_id'], quarto_selecionado['hotel_id'],
             data_reserva.date(), data_checkin.date(), data_checkout.date(), num_noites,
             num_adultos,
             num_criancas,
-            random.choice(CANAIS),
+            canal_reserva, # Usa a variável
             status_reserva,
             data_cancelamento.date() if data_cancelamento else None,
             random.choice(SOLICITACOES),
             valor_base_estadia,
-            random.choice(MOTIVOS_VIAGEM),       # Nova coluna
-            motivo_cancelamento,                 # Nova coluna
-            taxa_limpeza,                        # Nova coluna
-            taxa_turismo,                        # Nova coluna
-            round(random.uniform(4.0, 5.0), 1) if status_reserva == 'Concluída' and random.random() < 0.7 else None,  # Nova coluna: avaliação
-            fake.text(max_nb_chars=100) if status_reserva == 'Concluída' and random.random() < 0.3 else None  # Nova coluna: comentários
+            random.choice(MOTIVOS_VIAGEM),
+            motivo_cancelamento,
+            taxa_limpeza,
+            taxa_turismo,
+            round(random.uniform(4.0, 5.0), 1) if status_reserva == 'Concluída' and random.random() < 0.7 else None,
+            fake.text(max_nb_chars=100) if status_reserva == 'Concluída' and random.random() < 0.3 else None
         ))
+        
+        # --- NOVO: GERAÇÃO DE DADOS RESERVAS_OTA ---
+        # Se a reserva veio de um canal OTA, cria um registro na tabela OTA
+        if canal_reserva in OTAS and status_reserva != 'Cancelada':
+            ota_reserva_id = ota_reserva_id_global
+            ota_confirmation_code = f"{canal_reserva[0:3].upper()}-{fake.pystr(8, 8, '0123456789ABCDEF')}"
+            commission_rate = round(random.uniform(0.12, 0.25), 2) # Comissão entre 12% e 25%
+            
+            # O valor que o hóspede pagou na OTA (pode ser um pouco diferente)
+            total_paid_to_ota = valor_base_estadia + taxa_limpeza + taxa_turismo
+            
+            # O valor líquido que o hotel recebe (Valor pago - Comissão)
+            net_amount_received = round(total_paid_to_ota * (1 - commission_rate), 2)
+            
+            # Nome do hóspede como veio da OTA (pode ser ligeiramente diferente)
+            ota_guest_name = fake.name()
+            
+            ota_specific_requests = fake.text(max_nb_chars=50) if random.random() < 0.3 else None
+            
+            reservas_ota_data.append((
+                ota_reserva_id,
+                reserva_id, # Chave estrangeira para a tabela de reservas
+                ota_confirmation_code,
+                ota_guest_name,
+                round(total_paid_to_ota, 2),
+                commission_rate,
+                net_amount_received,
+                ota_specific_requests
+            ))
+            ota_reserva_id_global += 1
 
-        # --- Consumos e Faturas ---
+        # --- Consumos e Faturas (Lógica existente) ---
         subtotal_consumos = 0.0
         if status_reserva in ['Concluída', 'Hospedado']:
             
@@ -367,7 +402,7 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
 
                 dias_na_estadia = random.randint(0, num_noites -1 if num_noites > 0 else 0)
                 data_consumo = data_checkin + timedelta(days=dias_na_estadia)
-                hora_consumo = f"{random.randint(6, 23):02d}:{random.randint(0, 59):02d}"  # Nova coluna
+                hora_consumo = f"{random.randint(6, 23):02d}:{random.randint(0, 59):02d}"
                 
                 consumos_data.append((
                     consumo_id_global, reserva_id, hospede_id, quarto_selecionado['hotel_id'],
@@ -375,9 +410,9 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
                     data_consumo.date(),
                     quantidade,
                     valor_consumo_total,
-                    hora_consumo,                           # Nova coluna
-                    random.choice(['Quarto', 'Restaurante', 'Bar', 'Spa', 'Balcão']),  # Nova coluna: local
-                    fake.name() if random.random() < 0.5 else None  # Nova coluna: funcionário responsável
+                    hora_consumo,
+                    random.choice(['Quarto', 'Restaurante', 'Bar', 'Spa', 'Balcão']),
+                    fake.name() if random.random() < 0.5 else None
                 ))
                 subtotal_consumos += valor_consumo_total
                 consumo_id_global += 1
@@ -406,15 +441,15 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
                     desconto_valor,
                     impostos_valor,
                     valor_total_fatura,
-                    data_pagamento,                          # Nova coluna
-                    taxa_limpeza,                            # Nova coluna
-                    taxa_turismo,                            # Nova coluna
-                    round(random.uniform(0.0, 0.10), 4),     # Nova coluna: taxa_servico
-                    fake.iban()                              # Nova coluna: número_transacao
+                    data_pagamento,
+                    taxa_limpeza,
+                    taxa_turismo,
+                    round(random.uniform(0.0, 0.10), 4),
+                    fake.iban()
                 ))
                 fatura_id_global += 1
 
-    # Schemas atualizados
+    # --- Schemas --- (Schemas de reservas, consumos e faturas mantidos)
     schema_reservas = StructType([
         StructField("reserva_id", IntegerType(), False), StructField("hospede_id", IntegerType(), True),
         StructField("quarto_id", IntegerType(), True), StructField("hotel_id", IntegerType(), True),
@@ -427,12 +462,12 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
         StructField("data_cancelamento", DateType(), True),
         StructField("solicitacoes_especiais", StringType(), True),
         StructField("valor_total_estadia", DoubleType(), True),
-        StructField("motivo_viagem", StringType(), True),        # Nova coluna
-        StructField("motivo_cancelamento", StringType(), True),  # Nova coluna
-        StructField("taxa_limpeza", DoubleType(), True),         # Nova coluna
-        StructField("taxa_turismo", DoubleType(), True),         # Nova coluna
-        StructField("avaliacao_hospede", DoubleType(), True),    # Nova coluna
-        StructField("comentarios_hospede", StringType(), True)   # Nova coluna
+        StructField("motivo_viagem", StringType(), True),
+        StructField("motivo_cancelamento", StringType(), True),
+        StructField("taxa_limpeza", DoubleType(), True),
+        StructField("taxa_turismo", DoubleType(), True),
+        StructField("avaliacao_hospede", DoubleType(), True),
+        StructField("comentarios_hospede", StringType(), True)
     ])
     
     schema_consumos = StructType([
@@ -442,9 +477,9 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
         StructField("data_consumo", DateType(), True), 
         StructField("quantidade", IntegerType(), True),
         StructField("valor_total_consumo", DoubleType(), True),
-        StructField("hora_consumo", StringType(), True),         # Nova coluna
-        StructField("local_consumo", StringType(), True),        # Nova coluna
-        StructField("funcionario_responsavel", StringType(), True) # Nova coluna
+        StructField("hora_consumo", StringType(), True),
+        StructField("local_consumo", StringType(), True),
+        StructField("funcionario_responsavel", StringType(), True)
     ])
     
     schema_faturas = StructType([
@@ -459,23 +494,37 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
         StructField("descontos", DoubleType(), True),
         StructField("impostos", DoubleType(), True),
         StructField("valor_total", DoubleType(), True),
-        StructField("data_pagamento", DateType(), True),         # Nova coluna
-        StructField("taxa_limpeza", DoubleType(), True),         # Nova coluna
-        StructField("taxa_turismo", DoubleType(), True),         # Nova coluna
-        StructField("taxa_servico", DoubleType(), True),         # Nova coluna
-        StructField("numero_transacao", StringType(), True)      # Nova coluna
+        StructField("data_pagamento", DateType(), True),
+        StructField("taxa_limpeza", DoubleType(), True),
+        StructField("taxa_turismo", DoubleType(), True),
+        StructField("taxa_servico", DoubleType(), True),
+        StructField("numero_transacao", StringType(), True)
+    ])
+    
+    # NOVO: Schema para a tabela reservas_ota
+    schema_reservas_ota = StructType([
+        StructField("ota_reserva_id", IntegerType(), False), # Chave primária da tabela
+        StructField("reserva_id", IntegerType(), False),     # Chave estrangeira (FK de source_reservas)
+        StructField("ota_confirmation_code", StringType(), True), # Cód. da OTA (ex: BKG-12345)
+        StructField("ota_guest_name", StringType(), True),   # Nome do hóspede na OTA
+        StructField("total_paid_to_ota", DoubleType(), True),# Valor total pago na OTA
+        StructField("commission_rate", DoubleType(), True),  # Taxa de comissão (ex: 0.18 para 18%)
+        StructField("net_amount_received", DoubleType(), True), # Valor líquido para o hotel
+        StructField("ota_specific_requests", StringType(), True) # Pedidos feitos na OTA
     ])
 
     # Criar DataFrames
     df_reservas = spark.createDataFrame(reservas_data, schema_reservas)
     df_consumos = spark.createDataFrame(consumos_data, schema_consumos)
     df_faturas = spark.createDataFrame(faturas_data, schema_faturas)
+    df_reservas_ota = spark.createDataFrame(reservas_ota_data, schema_reservas_ota) # NOVO
 
-    return df_reservas, df_consumos, df_faturas
+    # MODIFICADO: Retorna o novo DataFrame
+    return df_reservas, df_consumos, df_faturas, df_reservas_ota
 
-# Célula 6: Execução Principal (Mantida igual)
+# Célula 6: Execução Principal (MODIFICADA)
 def run_generation():
-    CATALOG = "production"
+    CATALOG = "dev"
     SCHEMA = "transient"
     
     spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOG}")
@@ -496,8 +545,9 @@ def run_generation():
     df_hospedes.write.mode("overwrite").saveAsTable(f"{CATALOG}.{SCHEMA}.source_hospedes")
     print(f"{df_hospedes.count()} registros de hóspedes salvos em {CATALOG}.{SCHEMA}.source_hospedes")
 
-    print("\n--- Gerando Reservas, Consumos e Faturas ---")
-    df_reservas, df_consumos, df_faturas = gerar_dependentes(
+    print("\n--- Gerando Reservas, Consumos, Faturas e Reservas OTA ---") # Título atualizado
+    # MODIFICADO: Captura o novo DataFrame
+    df_reservas, df_consumos, df_faturas, df_reservas_ota = gerar_dependentes(
         df_hoteis, df_quartos, df_hospedes, 
         num_reservas=15000
     )
@@ -510,6 +560,10 @@ def run_generation():
 
     df_faturas.write.mode("overwrite").saveAsTable(f"{CATALOG}.{SCHEMA}.source_faturas")
     print(f"{df_faturas.count()} registros de faturas salvos em {CATALOG}.{SCHEMA}.source_faturas")
+    
+    # NOVO: Bloco para salvar a tabela reservas_ota
+    df_reservas_ota.write.mode("overwrite").saveAsTable(f"{CATALOG}.{SCHEMA}.source_reservas_ota")
+    print(f"{df_reservas_ota.count()} registros de reservas OTA salvos em {CATALOG}.{SCHEMA}.source_reservas_ota")
     
     print("\n--- Processo de Geração Concluído! ---")
 
