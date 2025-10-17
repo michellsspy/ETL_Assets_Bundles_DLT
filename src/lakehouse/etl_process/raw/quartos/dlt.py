@@ -1,7 +1,7 @@
 import dlt
 from pyspark.sql import functions as F
 # Importa o schema que acabamos de definir
-from etl_assets_bundles_dlt.lakehouse.etl_process.raw.quartos.schema import schema_raw_quartos
+from .schema import schema_raw_quartos
 
 # Define os nomes das tabelas de origem (transient) e destino (raw)
 SOURCE_TABLE = "dev.transient.source_quartos"

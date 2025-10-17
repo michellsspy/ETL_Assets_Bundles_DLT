@@ -1,6 +1,6 @@
 import dlt
 from pyspark.sql import functions as F
-from etl_assets_bundles_dlt.lakehouse.etl_process.raw.consumos.schema import schema_raw_consumos
+from .schema import schema_raw_consumos
 
 SOURCE_TABLE = "dev.transient.source_consumos"
 TARGET_TABLE = "dev.raw.consumos"

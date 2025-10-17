@@ -1,7 +1,7 @@
 import dlt
 from pyspark.sql import functions as F
 # Importa o schema que acabamos de definir
-from etl_assets_bundles_dlt.lakehouse.etl_process.raw.faturas.schema import schema_raw_faturas
+from .schema import schema_raw_faturas
 
 # Define os nomes das tabelas de origem (transient) e destino (raw)
 SOURCE_TABLE = "dev.transient.source_faturas"
