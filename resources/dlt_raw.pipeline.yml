@@ -6,10 +6,26 @@ resources:
     dlt_raw_pipeline:
       name: "DLT - 1. Pipeline Transient para Raw"
       catalog: "dev"
-      target: "raw"
+      target: "raw" 
       serverless: true
+      
+      # O DLT irá ler todos os arquivos .py listados aqui 
+      # e uni-los em um único pipeline.
       libraries:
         - file:
             path: "../src/lakehouse/etl_process/raw/consumos/dlt.py"
+        - file:
+            path: "../src/lakehouse/etl_process/raw/hoteis/dlt.py"
+        - file:
+            path: "../src/lakehouse/etl_process/raw/faturas/dlt.py"
+        - file:
+            path: "../src/lakehouse/etl_process/raw/hospedes/dlt.py"
+        - file:
+            path: "../src/lakehouse/etl_process/raw/quartos/dlt.py"
+        - file:
+            path: "../src/lakehouse/etl_process/raw/reservas/dlt.py"
+        - file:
+            path: "../src/lakehouse/etl_process/raw/reserva_ota/dlt.py"
+            
       development: true
       continuous: false

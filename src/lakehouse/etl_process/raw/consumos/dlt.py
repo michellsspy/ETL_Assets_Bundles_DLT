@@ -39,7 +39,6 @@ dlt.apply_changes(
     source = "consumos_transient_stream",
     keys = ["consumo_id"], # Chave Primária
     
-    # Esta é a mágica:
     # Diz ao DLT para NUNCA atualizar o 'insert_date' se o registro já existir.
     except_column_list = ["insert_date"],
     
@@ -47,15 +46,3 @@ dlt.apply_changes(
     name = TARGET_TABLE_DLT_NAME,
     comment = f"Tabela Raw de Consumos (SCD Type 1) ingerida da {SOURCE_TABLE}"
 )
-
-# RESULTADO DA LÓGICA:
-#
-# 1. DADO NOVO (INSERT):
-#    O DLT executa o INSERT.
-#    - 'insert_date' recebe o valor do stream (agora).
-#    - 'update_date' recebe o valor do stream (agora).
-#
-# 2. DADO ATUALIZADO (UPDATE):
-#    O DLT executa o UPDATE.
-#    - 'insert_date' é ignorado (graças ao 'except_column_list').
-#    - 'update_date' recebe o novo valor do stream (agora).
