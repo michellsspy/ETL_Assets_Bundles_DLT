@@ -136,7 +136,6 @@ def hospedes_raw_stream():
         col("restricoes_alimentares").cast("STRING"),
         col("data_ultima_hospedagem").cast("DATE"),
         col("total_hospedagens").cast("INT"),
-        col("update_date")
     ).withColumn("data_carga_trusted", current_timestamp())
 
 @dlt.table(
@@ -183,7 +182,6 @@ def reservas_raw_stream():
         col("taxa_turismo").cast("DOUBLE"),
         col("avaliacao_hospede").cast("DOUBLE"),
         col("comentarios_hospede").cast("STRING"),
-        col("update_date")
     ).withColumn("data_carga_trusted", current_timestamp())
 
 @dlt.table(
@@ -220,7 +218,6 @@ def consumos_raw_stream():
         col("hora_consumo").cast("STRING"),
         col("local_consumo").cast("STRING"),
         col("funcionario_responsavel").cast("STRING"),
-        col("update_date")
     ).withColumn("data_carga_trusted", current_timestamp())
 
 @dlt.table(
@@ -263,7 +260,6 @@ def faturas_raw_stream():
         col("taxa_turismo").cast("DOUBLE"),
         col("taxa_servico").cast("DOUBLE"),
         col("numero_transacao").cast("STRING"),
-        col("update_date")
     ).withColumn("data_carga_trusted", current_timestamp())
 
 @dlt.table(
@@ -297,7 +293,6 @@ def reservas_ota_raw_stream():
         col("taxa_comissao").cast("DOUBLE"),
         col("valor_liquido_recebido").cast("DOUBLE"),
         col("ota_solicitacoes_especificas").cast("STRING"),
-        col("update_date")
     ).withColumn("data_carga_trusted", current_timestamp())
 
 @dlt.table(
