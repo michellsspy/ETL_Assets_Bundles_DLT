@@ -5,7 +5,7 @@ resources:
   pipelines:
     dlt_trusted_pipeline:
       name: "DLT - 2. Pipeline Raw para Trusted"
-      catalog: "production"
+      catalog: "dev"
       target: "trusted"
       serverless: true
       libraries:

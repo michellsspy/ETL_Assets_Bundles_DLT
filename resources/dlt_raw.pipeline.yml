@@ -5,7 +5,7 @@ resources:
   pipelines:
     dlt_raw_pipeline:
       name: "DLT - 1. Pipeline Transient para Raw"
-      catalog: "production"
+      catalog: "dev"
       target: "raw"
       serverless: true
       libraries:

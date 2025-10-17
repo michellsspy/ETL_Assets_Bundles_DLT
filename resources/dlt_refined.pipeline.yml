@@ -4,8 +4,8 @@
 resources:
   pipelines:
     dlt_refined_pipeline:
-      name: "DLT - 3. Pipeline Trusted para Refined (Star Schema)"
-      catalog: "production"
+      name: "DLT - 3. Pipeline Trusted para Refined"
+      catalog: "dev"
       target: "refined"
       serverless: true
       libraries:
