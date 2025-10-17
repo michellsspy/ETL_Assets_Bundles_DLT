@@ -1,89 +1,36 @@
-# Databricks notebook source
+# COMMAND ----------
+
 # src/dlt_pipelines/dlt_trusted_pipeline.py
 
 import dlt
 from pyspark.sql.functions import col, current_timestamp
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType # Import needed for type hinting
 
-# Obtenha a sessão Spark
 spark = SparkSession.builder.getOrCreate()
 
-# --- Camada TRUSTED (Prata) ---
-# Implementada com MERGE explícito para controle das colunas de auditoria
-
 # --- Funções Helper ---
-# Estas funções ajudam a construir o SQL do MERGE dinamicamente
-
-def get_business_cols(schema: StructType) -> list[str]:
-    """Retorna nomes de colunas do schema, excluindo as de auditoria."""
+def get_business_cols(schema):
     return [f.name for f in schema.fields if f.name not in ("insert_date", "update_date")]
 
-def build_update_set_clause(schema: StructType, primary_keys: list[str], source_alias="source", target_alias="target") -> str:
-    """Constrói a cláusula SET para o UPDATE do MERGE."""
+def build_update_set_clause(schema, primary_keys, source_alias="source", target_alias="target"):
     cols = get_business_cols(schema)
-    # Atualiza todas as colunas de negócio que NÃO são chave primária
-    set_clauses = [f"{target_alias}.`{c}` = {source_alias}.`{c}`" for c in cols if c not in primary_keys]
-    # Adiciona a atualização da coluna 'update_date'
-    set_clauses.append(f"{target_alias}.update_date = current_timestamp()")
+    set_clauses = [f"{target_alias}.`{c}` = {source_alias}.`{c}`" for c in cols if c not in primary_keys] # Não atualiza PKs
+    set_clauses.append(f"{target_alias}.update_date = current_timestamp()") # Atualiza a data de update
     return ", ".join(set_clauses)
 
-def build_insert_clause(schema: StructType, source_alias="source") -> str:
-    """Constrói as cláusulas COLUMNS e VALUES para o INSERT do MERGE."""
-    cols = [f"`{f.name}`" for f in schema.fields] # Nomes de todas as colunas no destino
+def build_insert_clause(schema, source_alias="source"):
+    cols = [f"`{f.name}`" for f in schema.fields]
     values = []
-    business_cols = get_business_cols(schema) # Nomes das colunas de negócio (da origem)
     for f in schema.fields:
         if f.name == "insert_date":
-            values.append("current_timestamp()") # Preenche insert_date com agora
+            values.append("current_timestamp()")
         elif f.name == "update_date":
-            values.append("NULL") # Preenche update_date com NULL
-        elif f.name in business_cols:
-            values.append(f"{source_alias}.`{f.name}`") # Pega o valor da origem
+            values.append("NULL")
         else:
-             # Caso raro: coluna existe no schema mas não na origem (exceto auditoria)
-             values.append("NULL")
+            values.append(f"{source_alias}.`{f.name}`")
     return f"({', '.join(cols)}) VALUES ({', '.join(values)})"
 
-def execute_merge_for_table(target_dlt_table_name: str, source_view_name: str, primary_keys: list[str]):
-    """Função genérica para executar o MERGE SQL dentro de uma função @dlt.table."""
-    target_table_name_qualified = f"LIVE.{target_dlt_table_name}" # Nome completo usado no SQL
-    
-    # Obtém o schema da view preparada (que já tem os casts corretos)
-    schema = spark.table(source_view_name).schema
-    
-    # Garante que o schema tenha as colunas de auditoria
-    schema_fields = schema.fields
-    if not any(f.name == "insert_date" for f in schema_fields):
-        schema = schema.add("insert_date", "timestamp")
-    if not any(f.name == "update_date" for f in schema_fields):
-        schema = schema.add("update_date", "timestamp")
-
-    # Cria a view temporária necessária para o SQL MERGE
-    # dlt.read garante a dependência correta no grafo DLT
-    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
-    
-    # Constrói as partes do SQL MERGE
-    merge_condition = " AND ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
-    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
-    insert_clause = build_insert_clause(schema, "source")
-
-    # Monta e executa o SQL
-    merge_sql = f"""
-        MERGE INTO {target_table_name_qualified} AS target
-        USING {source_view_name} AS source
-        ON {merge_condition}
-        WHEN MATCHED THEN UPDATE SET {update_clause}
-        WHEN NOT MATCHED THEN INSERT {insert_clause}
-    """
-    spark.sql(merge_sql)
-    
-    # Retorna um select da tabela alvo para o DLT
-    # Isso é necessário para que o DLT entenda que a tabela foi criada/atualizada
-    return spark.table(target_table_name_qualified)
-
-
-# --- Processamento das Tabelas (BATCH com MERGE Explícito) ---
+# --- Processamento das Tabelas (MODIFICADO para BATCH) ---
 
 # --- HOTEIS ---
 @dlt.view(
@@ -91,8 +38,10 @@ def execute_merge_for_table(target_dlt_table_name: str, source_view_name: str, p
   comment="Prepara os dados brutos de hoteis para o MERGE."
 )
 def hoteis_raw_prepared():
-  df_raw = spark.read.table("dev.raw.hoteis_raw") # Leitura BATCH
-  return df_raw.select( # Seleciona e faz cast das colunas de negócio
+  # MODIFICADO: readStream -> read
+  df_raw = spark.read.table("dev.raw.hoteis_raw")
+  # Seleciona e faz o cast (SEM colunas de auditoria da RAW)
+  return df_raw.select(
     col("hotel_id").cast("INT"), col("nome_hotel").cast("STRING"), col("endereco").cast("STRING"),
     col("cidade").cast("STRING"), col("estado").cast("STRING"), col("estrelas").cast("INT"),
     col("numero_quartos").cast("INT"), col("comodidades").cast("STRING"), col("telefone").cast("STRING"),
@@ -108,16 +57,39 @@ def hoteis_raw_prepared():
     comment="Tabela Trusted de Hoteis (carregada via MERGE)."
 )
 def hoteis_trusted():
-    return execute_merge_for_table(
-        target_dlt_table_name="hoteis_trusted",
-        source_view_name="hoteis_raw_prepared",
-        primary_keys=["hotel_id"]
-    )
+    source_view_name = "hoteis_raw_prepared"
+    target_table_name = "LIVE.hoteis_trusted"
+    primary_keys = ["hotel_id"]
+    schema = spark.table(source_view_name).schema
+    
+    # Adiciona colunas de auditoria ao schema se não existirem
+    schema_fields = schema.fields
+    if not any(f.name == "insert_date" for f in schema_fields):
+        schema.add("insert_date", "timestamp")
+    if not any(f.name == "update_date" for f in schema_fields):
+         schema.add("update_date", "timestamp")
+
+    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
+    
+    merge_condition = " AND ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
+    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
+    insert_clause = build_insert_clause(schema, "source")
+
+    spark.sql(f"""
+        MERGE INTO {target_table_name} AS target
+        USING {source_view_name} AS source
+        ON {merge_condition}
+        WHEN MATCHED THEN UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN INSERT {insert_clause}
+    """)
+    return spark.table(target_table_name)
+
 
 # --- QUARTOS ---
 @dlt.view(name="quartos_raw_prepared", comment="Prepara os dados brutos de quartos.")
 def quartos_raw_prepared():
-  df_raw = spark.read.table("dev.raw.quartos_raw") # Leitura BATCH
+  # MODIFICADO: readStream -> read
+  df_raw = spark.read.table("dev.raw.quartos_raw")
   return df_raw.select(
       col("quarto_id").cast("INT"), col("hotel_id").cast("INT"), col("numero_quarto").cast("STRING"),
       col("tipo_quarto").cast("STRING"), col("capacidade_maxima").cast("INT"), col("preco_diaria_base").cast("DOUBLE"),
@@ -129,16 +101,30 @@ def quartos_raw_prepared():
 
 @dlt.table(name="quartos_trusted", comment="Tabela Trusted de Quartos (carregada via MERGE).")
 def quartos_trusted():
-    return execute_merge_for_table(
-        target_dlt_table_name="quartos_trusted",
-        source_view_name="quartos_raw_prepared",
-        primary_keys=["quarto_id"]
-    )
+    source_view_name = "quartos_raw_prepared"
+    target_table_name = "LIVE.quartos_trusted"
+    primary_keys = ["quarto_id"]
+    schema = spark.table(source_view_name).schema
+    schema.add("insert_date", "timestamp").add("update_date", "timestamp")
+
+    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
+    merge_condition = " AND ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
+    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
+    insert_clause = build_insert_clause(schema, "source")
+
+    spark.sql(f"""
+        MERGE INTO {target_table_name} AS target USING {source_view_name} AS source
+        ON {merge_condition} WHEN MATCHED THEN UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN INSERT {insert_clause}
+    """)
+    return spark.table(target_table_name)
+
 
 # --- HOSPEDES ---
 @dlt.view(name="hospedes_raw_prepared", comment="Prepara os dados brutos de hospedes.")
 def hospedes_raw_prepared():
-    df_raw = spark.read.table("dev.raw.hospedes_raw") # Leitura BATCH
+    # MODIFICADO: readStream -> read
+    df_raw = spark.read.table("dev.raw.hospedes_raw")
     return df_raw.select(
         col("hospede_id").cast("INT"), col("nome_completo").cast("STRING"), col("cpf").cast("STRING"),
         col("data_nascimento").cast("DATE"), col("email").cast("STRING"), col("telefone").cast("STRING"),
@@ -151,16 +137,30 @@ def hospedes_raw_prepared():
 
 @dlt.table(name="hospedes_trusted", comment="Tabela Trusted de Hóspedes (carregada via MERGE).")
 def hospedes_trusted():
-    return execute_merge_for_table(
-        target_dlt_table_name="hospedes_trusted",
-        source_view_name="hospedes_raw_prepared",
-        primary_keys=["hospede_id"]
-    )
+    source_view_name = "hospedes_raw_prepared"
+    target_table_name = "LIVE.hospedes_trusted"
+    primary_keys = ["hospede_id"]
+    schema = spark.table(source_view_name).schema
+    schema.add("insert_date", "timestamp").add("update_date", "timestamp")
+
+    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
+    merge_condition = " AND ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
+    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
+    insert_clause = build_insert_clause(schema, "source")
+
+    spark.sql(f"""
+        MERGE INTO {target_table_name} AS target USING {source_view_name} AS source
+        ON {merge_condition} WHEN MATCHED THEN UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN INSERT {insert_clause}
+    """)
+    return spark.table(target_table_name)
+
 
 # --- RESERVAS ---
 @dlt.view(name="reservas_raw_prepared", comment="Prepara os dados brutos de reservas.")
 def reservas_raw_prepared():
-    df_raw = spark.read.table("dev.raw.reservas_raw") # Leitura BATCH
+    # MODIFICADO: readStream -> read
+    df_raw = spark.read.table("dev.raw.reservas_raw")
     return df_raw.select(
         col("reserva_id").cast("INT"), col("hospede_id").cast("INT"), col("quarto_id").cast("INT"),
         col("hotel_id").cast("INT"), col("data_reserva").cast("DATE"), col("data_checkin").cast("DATE"),
@@ -174,16 +174,30 @@ def reservas_raw_prepared():
 
 @dlt.table(name="reservas_trusted", comment="Tabela Trusted de Reservas (carregada via MERGE).")
 def reservas_trusted():
-    return execute_merge_for_table(
-        target_dlt_table_name="reservas_trusted",
-        source_view_name="reservas_raw_prepared",
-        primary_keys=["reserva_id"]
-    )
+    source_view_name = "reservas_raw_prepared"
+    target_table_name = "LIVE.reservas_trusted"
+    primary_keys = ["reserva_id"]
+    schema = spark.table(source_view_name).schema
+    schema.add("insert_date", "timestamp").add("update_date", "timestamp")
+
+    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
+    merge_condition = " AND ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
+    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
+    insert_clause = build_insert_clause(schema, "source")
+
+    spark.sql(f"""
+        MERGE INTO {target_table_name} AS target USING {source_view_name} AS source
+        ON {merge_condition} WHEN MATCHED THEN UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN INSERT {insert_clause}
+    """)
+    return spark.table(target_table_name)
+
 
 # --- CONSUMOS ---
 @dlt.view(name="consumos_raw_prepared", comment="Prepara os dados brutos de consumos.")
 def consumos_raw_prepared():
-    df_raw = spark.read.table("dev.raw.consumos_raw") # Leitura BATCH
+    # MODIFICADO: readStream -> read
+    df_raw = spark.read.table("dev.raw.consumos_raw")
     return df_raw.select(
         col("consumo_id").cast("INT"), col("reserva_id").cast("INT"), col("hospede_id").cast("INT"),
         col("hotel_id").cast("INT"), col("data_consumo").cast("DATE"), col("nome_servico").cast("STRING"),
@@ -193,16 +207,30 @@ def consumos_raw_prepared():
 
 @dlt.table(name="consumos_trusted", comment="Tabela Trusted de Consumos (carregada via MERGE).")
 def consumos_trusted():
-    return execute_merge_for_table(
-        target_dlt_table_name="consumos_trusted",
-        source_view_name="consumos_raw_prepared",
-        primary_keys=["consumo_id"]
-    )
+    source_view_name = "consumos_raw_prepared"
+    target_table_name = "LIVE.consumos_trusted"
+    primary_keys = ["consumo_id"]
+    schema = spark.table(source_view_name).schema
+    schema.add("insert_date", "timestamp").add("update_date", "timestamp")
+
+    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
+    merge_condition = " ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
+    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
+    insert_clause = build_insert_clause(schema, "source")
+
+    spark.sql(f"""
+        MERGE INTO {target_table_name} AS target USING {source_view_name} AS source
+        ON {merge_condition} WHEN MATCHED THEN UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN INSERT {insert_clause}
+    """)
+    return spark.table(target_table_name)
+
 
 # --- FATURAS ---
 @dlt.view(name="faturas_raw_prepared", comment="Prepara os dados brutos de faturas.")
 def faturas_raw_prepared():
-    df_raw = spark.read.table("dev.raw.faturas_raw") # Leitura BATCH
+    # MODIFICADO: readStream -> read
+    df_raw = spark.read.table("dev.raw.faturas_raw")
     return df_raw.select(
         col("fatura_id").cast("INT"), col("reserva_id").cast("INT"), col("hospede_id").cast("INT"),
         col("data_emissao").cast("DATE"), col("data_vencimento").cast("DATE"), col("status_pagamento").cast("STRING"),
@@ -214,16 +242,30 @@ def faturas_raw_prepared():
 
 @dlt.table(name="faturas_trusted", comment="Tabela Trusted de Faturas (carregada via MERGE).")
 def faturas_trusted():
-    return execute_merge_for_table(
-        target_dlt_table_name="faturas_trusted",
-        source_view_name="faturas_raw_prepared",
-        primary_keys=["fatura_id"]
-    )
+    source_view_name = "faturas_raw_prepared"
+    target_table_name = "LIVE.faturas_trusted"
+    primary_keys = ["fatura_id"]
+    schema = spark.table(source_view_name).schema
+    schema.add("insert_date", "timestamp").add("update_date", "timestamp")
+
+    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
+    merge_condition = " AND ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
+    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
+    insert_clause = build_insert_clause(schema, "source")
+
+    spark.sql(f"""
+        MERGE INTO {target_table_name} AS target USING {source_view_name} AS source
+        ON {merge_condition} WHEN MATCHED THEN UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN INSERT {insert_clause}
+    """)
+    return spark.table(target_table_name)
+
 
 # --- RESERVAS OTA ---
 @dlt.view(name="reservas_ota_raw_prepared", comment="Prepara os dados brutos de reservas OTA.")
 def reservas_ota_raw_prepared():
-    df_raw = spark.read.table("dev.raw.reserva_ota_raw") # Leitura BATCH
+    # MODIFICADO: readStream -> read
+    df_raw = spark.read.table("dev.raw.reserva_ota_raw")
     return df_raw.select(
         col("ota_reserva_id").cast("INT"), col("reserva_id").cast("INT"), col("ota_codigo_confirmacao").cast("STRING"),
         col("ota_nome_convidado").cast("STRING"), col("total_pago_ota").cast("DOUBLE"), col("taxa_comissao").cast("DOUBLE"),
@@ -232,8 +274,20 @@ def reservas_ota_raw_prepared():
 
 @dlt.table(name="reservas_ota_trusted", comment="Tabela Trusted de Reservas OTA (carregada via MERGE).")
 def reservas_ota_trusted():
-    return execute_merge_for_table(
-        target_dlt_table_name="reservas_ota_trusted",
-        source_view_name="reservas_ota_raw_prepared",
-        primary_keys=["ota_reserva_id"]
-    )
+    source_view_name = "reservas_ota_raw_prepared"
+    target_table_name = "LIVE.reservas_ota_trusted"
+    primary_keys = ["ota_reserva_id"]
+    schema = spark.table(source_view_name).schema
+    schema.add("insert_date", "timestamp").add("update_date", "timestamp")
+
+    dlt.read(source_view_name).createOrReplaceTempView(source_view_name)
+    merge_condition = " AND ".join([f"target.`{k}` = source.`{k}`" for k in primary_keys])
+    update_clause = build_update_set_clause(schema, primary_keys, "source", "target")
+    insert_clause = build_insert_clause(schema, "source")
+
+    spark.sql(f"""
+        MERGE INTO {target_table_name} AS target USING {source_view_name} AS source
+        ON {merge_condition} WHEN MATCHED THEN UPDATE SET {update_clause}
+        WHEN NOT MATCHED THEN INSERT {insert_clause}
+    """)
+    return spark.table(target_table_name)
