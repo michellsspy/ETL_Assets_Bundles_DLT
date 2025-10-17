@@ -361,29 +361,29 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
         # Se a reserva veio de um canal OTA, cria um registro na tabela OTA
         if canal_reserva in OTAS and status_reserva != 'Cancelada':
             ota_reserva_id = ota_reserva_id_global
-            ota_confirmation_code = f"{canal_reserva[0:3].upper()}-{fake.pystr(8, 8, '0123456789ABCDEF')}"
-            commission_rate = round(random.uniform(0.12, 0.25), 2) # Comissão entre 12% e 25%
+            ota_codigo_confirmacao = f"{canal_reserva[0:3].upper()}-{fake.pystr(8, 8, '0123456789ABCDEF')}"
+            taxa_comissao = round(random.uniform(0.12, 0.25), 2) # Comissão entre 12% e 25%
             
             # O valor que o hóspede pagou na OTA (pode ser um pouco diferente)
-            total_paid_to_ota = valor_base_estadia + taxa_limpeza + taxa_turismo
+            total_pago_ota = valor_base_estadia + taxa_limpeza + taxa_turismo
             
             # O valor líquido que o hotel recebe (Valor pago - Comissão)
-            net_amount_received = round(total_paid_to_ota * (1 - commission_rate), 2)
+            valor_liquido_recebido = round(total_pago_ota * (1 - taxa_comissao), 2)
             
             # Nome do hóspede como veio da OTA (pode ser ligeiramente diferente)
-            ota_guest_name = fake.name()
+            ota_nome_convidado = fake.name()
             
-            ota_specific_requests = fake.text(max_nb_chars=50) if random.random() < 0.3 else None
+            ota_solicitacoes_especificas = fake.text(max_nb_chars=50) if random.random() < 0.3 else None
             
             reservas_ota_data.append((
                 ota_reserva_id,
                 reserva_id, # Chave estrangeira para a tabela de reservas
-                ota_confirmation_code,
-                ota_guest_name,
-                round(total_paid_to_ota, 2),
-                commission_rate,
-                net_amount_received,
-                ota_specific_requests
+                ota_codigo_confirmacao,
+                ota_nome_convidado,
+                round(total_pago_ota, 2),
+                taxa_comissao,
+                valor_liquido_recebido,
+                ota_solicitacoes_especificas
             ))
             ota_reserva_id_global += 1
 
@@ -505,12 +505,12 @@ def gerar_dependentes(df_hoteis, df_quartos, df_hospedes, num_reservas=15000):
     schema_reservas_ota = StructType([
         StructField("ota_reserva_id", IntegerType(), False), # Chave primária da tabela
         StructField("reserva_id", IntegerType(), False),     # Chave estrangeira (FK de source_reservas)
-        StructField("ota_confirmation_code", StringType(), True), # Cód. da OTA (ex: BKG-12345)
-        StructField("ota_guest_name", StringType(), True),   # Nome do hóspede na OTA
-        StructField("total_paid_to_ota", DoubleType(), True),# Valor total pago na OTA
-        StructField("commission_rate", DoubleType(), True),  # Taxa de comissão (ex: 0.18 para 18%)
-        StructField("net_amount_received", DoubleType(), True), # Valor líquido para o hotel
-        StructField("ota_specific_requests", StringType(), True) # Pedidos feitos na OTA
+        StructField("ota_codigo_confirmacao", StringType(), True), # Cód. da OTA (ex: BKG-12345)
+        StructField("ota_nome_convidado", StringType(), True),   # Nome do hóspede na OTA
+        StructField("total_pago_ota", DoubleType(), True),# Valor total pago na OTA
+        StructField("taxa_comissao", DoubleType(), True),  # Taxa de comissão (ex: 0.18 para 18%)
+        StructField("valor_liquido_recebido", DoubleType(), True), # Valor líquido para o hotel
+        StructField("ota_solicitacoes_especificas", StringType(), True) # Pedidos feitos na OTA
     ])
 
     # Criar DataFrames
