@@ -1,17 +1,8 @@
-from pyspark.sql import functions as F
 import dlt
-import sys
-import os
+from pyspark.sql import functions as F
 
-# Pega o caminho absoluto do diretório onde este arquivo (dlt.py) está
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Adiciona esse diretório ao sys.path
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
-
-# Agora, podemos importar 'schema' diretamente, pois seu diretório está no path
-from schema import schema_raw_quartos
+# Esta linha deve funcionar agora
+from lakehouse.etl_process.raw.quartos.schema import schema_raw_quartos
 
 # Define os nomes das tabelas de origem (transient) e destino (raw)
 SOURCE_TABLE = "dev.transient.source_quartos"
