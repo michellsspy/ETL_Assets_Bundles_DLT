@@ -1,7 +1,17 @@
-import dlt
 from pyspark.sql import functions as F
-# Importa o schema que acabamos de definir
-from .schema import schema_raw_faturas
+import dlt
+import sys
+import os
+
+# Pega o caminho absoluto do diretório onde este arquivo (dlt.py) está
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Adiciona esse diretório ao sys.path
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
+# Agora, podemos importar 'schema' diretamente, pois seu diretório está no path
+from schema import schema_raw_faturas
 
 # Define os nomes das tabelas de origem (transient) e destino (raw)
 SOURCE_TABLE = "dev.transient.source_faturas"
