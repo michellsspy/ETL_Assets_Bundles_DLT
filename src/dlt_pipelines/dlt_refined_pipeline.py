@@ -1,18 +1,17 @@
-# Databricks notebook source
 import dlt
 from pyspark.sql.functions import (
     col, md5, current_timestamp, to_date, year, month, 
     dayofmonth, quarter, date_format, expr, dayofweek, weekofyear
 )
 
-# --- Camada REFINED (Ouro) ---
+# Camada REFINED (Ouro)
 # Modelo Star Schema com dimensões carregadas via SCD1 (MERGE).
 
-# ---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 # 1. DIMENSÕES DE "PASSTHROUGH" (Carregadas com SCD1)
-# ---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-# --- HOTEIS ---
+# HOTEIS
 @dlt.table(
   name="d_hoteis_trusted_stream",
   comment="Stream de dados da camada trusted de hoteis.",
@@ -30,7 +29,7 @@ dlt.apply_changes(
   stored_as_scd_type = 1 # Aplica o MERGE (UPDATE/INSERT)
 )
 
-# --- HOSPEDES ---
+# HOSPEDES
 @dlt.table(
   name="d_hospedes_trusted_stream",
   comment="Stream de dados da camada trusted de hospedes.",
@@ -47,7 +46,7 @@ dlt.apply_changes(
   stored_as_scd_type = 1
 )
 
-# --- QUARTOS ---
+# QUARTOS
 @dlt.table(
   name="d_quartos_trusted_stream",
   comment="Stream de dados da camada trusted de quartos.",
@@ -64,11 +63,11 @@ dlt.apply_changes(
   stored_as_scd_type = 1
 )
 
-# ---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 # 2. NOVAS DIMENSÕES (DERIVADAS E CARREGADAS COM SCD1)
-# ---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
-# --- CANAL ---
+# CANAL
 @dlt.table(
   name="d_canal_source_stream",
   comment="Stream de canais de reserva únicos da tabela de reservas.",
@@ -96,7 +95,7 @@ dlt.apply_changes(
   except_column_list = ["id_canal"] 
 )
 
-# --- SERVIÇOS ---
+# SERVIÇOS
 @dlt.table(
   name="d_servicos_source_stream",
   comment="Stream de serviços únicos da tabela de consumos.",
@@ -122,7 +121,7 @@ dlt.apply_changes(
   except_column_list = ["id_servico"]
 )
 
-# --- MOTIVO VIAGEM ---
+# MOTIVO VIAGEM
 @dlt.table(
   name="d_motivo_viagem_source_stream",
   comment="Stream de motivos de viagem únicos.",
@@ -149,7 +148,7 @@ dlt.apply_changes(
 )
 
 
-# --- STATUS RESERVA ---
+# STATUS RESERVA
 @dlt.table(
   name="d_status_reserva_source_stream",
   comment="Stream de status de reserva únicos.",
@@ -176,7 +175,7 @@ dlt.apply_changes(
 )
 
 
-# --- DIMENSÃO DE TEMPO ---
+# DIMENSÃO DE TEMPO
 # (Esta dimensão continua sendo recarregamento total, o que é aceitável)
 @dlt.table(
   name="d_tempo",
@@ -220,10 +219,10 @@ def d_tempo():
       )
   )
 
-# ---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 # 3. TABELAS DE FATOS (Recarregamento Total)
 # Elas são reconstruídas a cada execução, usando as dimensões estáveis.
-# ---------------------------------------------------------------------------
+#------------------------------------------------------------------------
 
 @dlt.table(
   name="f_reservas",

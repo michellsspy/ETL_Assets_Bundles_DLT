@@ -1,7 +1,6 @@
-# Databricks notebook source
 import dlt
 
-# --- Camada RAW (Ingestão Pura) ---
+# Camada RAW (Ingestão Pura)
 # Esta camada agora apenas anexa (appends) os novos dados recebidos da fonte,
 # criando um log imutável e completo. Este é um processo em batch incremental.
 

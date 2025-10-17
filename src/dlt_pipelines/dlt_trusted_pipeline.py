@@ -1,12 +1,10 @@
-# src/dlt_pipelines/dlt_trusted_pipeline.py
-
 import dlt
 from pyspark.sql.functions import col, current_timestamp
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.getOrCreate()
 
-# --- Funções Helper ---
+# Funções Helper
 def get_business_cols(schema):
     return [f.name for f in schema.fields if f.name not in ("insert_date", "update_date")]
 
@@ -28,9 +26,9 @@ def build_insert_clause(schema, source_alias="source"):
             values.append(f"{source_alias}.`{f.name}`")
     return f"({', '.join(cols)}) VALUES ({', '.join(values)})"
 
-# --- Processamento das Tabelas (MODIFICADO para BATCH) ---
+# Processamento das Tabelas (MODIFICADO para BATCH)
 
-# --- HOTEIS ---
+# HOTEIS
 @dlt.view(
   name="hoteis_raw_prepared",
   comment="Prepara os dados brutos de hoteis para o MERGE."
@@ -83,7 +81,7 @@ def hoteis_trusted():
     return spark.table(target_table_name)
 
 
-# --- QUARTOS ---
+# QUARTOS
 @dlt.view(name="quartos_raw_prepared", comment="Prepara os dados brutos de quartos.")
 def quartos_raw_prepared():
   # MODIFICADO: readStream -> read
@@ -118,7 +116,7 @@ def quartos_trusted():
     return spark.table(target_table_name)
 
 
-# --- HOSPEDES ---
+# HOSPEDES
 @dlt.view(name="hospedes_raw_prepared", comment="Prepara os dados brutos de hospedes.")
 def hospedes_raw_prepared():
     # MODIFICADO: readStream -> read
@@ -154,7 +152,7 @@ def hospedes_trusted():
     return spark.table(target_table_name)
 
 
-# --- RESERVAS ---
+# RESERVAS
 @dlt.view(name="reservas_raw_prepared", comment="Prepara os dados brutos de reservas.")
 def reservas_raw_prepared():
     # MODIFICADO: readStream -> read
@@ -191,7 +189,7 @@ def reservas_trusted():
     return spark.table(target_table_name)
 
 
-# --- CONSUMOS ---
+# CONSUMOS
 @dlt.view(name="consumos_raw_prepared", comment="Prepara os dados brutos de consumos.")
 def consumos_raw_prepared():
     # MODIFICADO: readStream -> read
@@ -224,7 +222,7 @@ def consumos_trusted():
     return spark.table(target_table_name)
 
 
-# --- FATURAS ---
+# FATURAS
 @dlt.view(name="faturas_raw_prepared", comment="Prepara os dados brutos de faturas.")
 def faturas_raw_prepared():
     # MODIFICADO: readStream -> read
@@ -259,7 +257,7 @@ def faturas_trusted():
     return spark.table(target_table_name)
 
 
-# --- RESERVAS OTA ---
+# RESERVAS OTA
 @dlt.view(name="reservas_ota_raw_prepared", comment="Prepara os dados brutos de reservas OTA.")
 def reservas_ota_raw_prepared():
     # MODIFICADO: readStream -> read
