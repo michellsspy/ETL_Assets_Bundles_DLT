@@ -22,7 +22,7 @@ spark = SparkSession.builder.getOrCreate()
 )
 def hoteis_raw_stream():
   # CORREÇÃO: Use spark.readStream.table para ler tabelas externas
-  df_raw = spark.readStream.table("dev.raw.hoteis")
+  df_raw = spark.readStream.table("dev.raw.hoteis_raw")
   # Seleciona, faz o cast e inclui 'update_date' para 'sequence_by'
   return df_raw.select(
     col("hotel_id").cast("INT"),
@@ -73,7 +73,7 @@ def hoteis_trusted():
 )
 def quartos_raw_stream():
   # CORREÇÃO: Use spark.readStream.table
-  df_raw = spark.readStream.table("dev.raw.quartos")
+  df_raw = spark.readStream.table("dev.raw.quartos_raw")
   return df_raw.select(
       col("quarto_id").cast("INT"),
       col("hotel_id").cast("INT"),
@@ -115,7 +115,7 @@ def quartos_trusted():
 )
 def hospedes_raw_stream():
     # CORREÇÃO: Use spark.readStream.table
-    df_raw = spark.readStream.table("dev.raw.hospedes")
+    df_raw = spark.readStream.table("dev.raw.hospedes_raw")
     return df_raw.select(
         col("hospede_id").cast("INT"),
         col("nome_completo").cast("STRING"),
@@ -160,7 +160,7 @@ def hospedes_trusted():
 )
 def reservas_raw_stream():
     # CORREÇÃO: Use spark.readStream.table
-    df_raw = spark.readStream.table("dev.raw.reservas")
+    df_raw = spark.readStream.table("dev.raw.reservas_raw")
     return df_raw.select(
         col("reserva_id").cast("INT"),
         col("hospede_id").cast("INT"),
@@ -207,7 +207,7 @@ def reservas_trusted():
 )
 def consumos_raw_stream():
     # CORREÇÃO: Use spark.readStream.table
-    df_raw = spark.readStream.table("dev.raw.consumos")
+    df_raw = spark.readStream.table("dev.raw.consumos_raw")
     return df_raw.select(
         col("consumo_id").cast("INT"),
         col("reserva_id").cast("INT"),
@@ -244,7 +244,7 @@ def consumos_trusted():
 )
 def faturas_raw_stream():
     # CORREÇÃO: Use spark.readStream.table
-    df_raw = spark.readStream.table("dev.raw.faturas")
+    df_raw = spark.readStream.table("dev.raw.faturas_raw")
     return df_raw.select(
         col("fatura_id").cast("INT"),
         col("reserva_id").cast("INT"),
@@ -287,7 +287,7 @@ def faturas_trusted():
 )
 def reservas_ota_raw_stream():
     # CORREÇÃO: Use spark.readStream.table
-    df_raw = spark.readStream.table("dev.raw.reserva_ota")
+    df_raw = spark.readStream.table("dev.raw.reserva_ota_raw")
     return df_raw.select(
         col("ota_reserva_id").cast("INT"),
         col("reserva_id").cast("INT"),
