@@ -1,5 +1,3 @@
-# COMMAND ----------
-
 # src/dlt_pipelines/dlt_trusted_pipeline.py
 
 import dlt
