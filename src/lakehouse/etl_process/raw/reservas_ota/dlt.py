@@ -14,7 +14,6 @@ TARGET_TABLE_DLT_NAME = "raw_reserva_ota" # Nome lógico no grafo DLT
     comment=f"Lê a tabela {SOURCE_TABLE}, prepara colunas de controle e aplica o schema explícito.",
     temporary=True,
     schema=schema_raw_reserva_ota,  # Aplica o schema aqui para garantir os tipos
-    tags={"layer": "raw_intermediate"} # Tag para a view intermediária
 )
 def reserva_ota_transient_stream():
     """
