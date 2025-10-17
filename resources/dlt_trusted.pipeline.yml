@@ -9,7 +9,7 @@ resources:
       target: "trusted"
       serverless: true
       libraries:
-        - notebook:
+        - file:
             path: "../src/dlt_pipelines/dlt_trusted_pipeline.py"
       development: true
       continuous: false
