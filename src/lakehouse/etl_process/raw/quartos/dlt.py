@@ -1,28 +1,25 @@
 import dlt
 from pyspark.sql import functions as F
 
-# Esta linha deve funcionar agora
+# Importa o schema (usando o import local que funcionou)
 from schema import schema_raw_quartos
 
-# Define os nomes das tabelas de origem (transient) e destino (raw)
 SOURCE_TABLE = "dev.transient.source_quartos"
 TARGET_TABLE = "dev.raw.quartos"
-TARGET_TABLE_DLT_NAME = "raw_quartos" # Nome lógico usado no DLT
+TARGET_TABLE_DLT_NAME = "raw_quartos" # Nome lógico no grafo DLT
 
 @dlt.table(
     name="quartos_transient_stream",
-    comment=f"Lê a tabela {SOURCE_TABLE} e prepara colunas de controle para o MERGE.",
-    temporary=True
+    comment=f"Lê a tabela {SOURCE_TABLE}, prepara colunas de controle e aplica o schema explícito.",
+    temporary=True,
+    schema=schema_raw_quartos,  # Aplica o schema aqui para garantir os tipos
+    tags={"layer": "raw_intermediate"} # Tag para a view intermediária
 )
 def quartos_transient_stream():
     """
-    Prepara o stream de dados da origem (source_quartos).
-
-    Esta função lê a tabela de origem e adiciona as colunas de auditoria
-    com o timestamp atual.
-
-    - 'insert_date': Recebe o timestamp atual (será usado APENAS no INSERT).
-    - 'update_date': Recebe o timestamp atual (será usado no INSERT e no UPDATE).
+    Prepara o stream de dados da origem.
+    O schema explícito definido no decorador @dlt.table garantirá
+    que o DLT faça o cast correto dos tipos de dados.
     """
     processing_time = F.current_timestamp()
     
@@ -34,17 +31,15 @@ def quartos_transient_stream():
 
 # Aplica as mudanças na tabela Raw (SCD Type 1)
 dlt.apply_changes(
-    target = TARGET_TABLE, # O nome completo da tabela final (ex: dev.raw.quartos)
-    source = "quartos_transient_stream", # O nome da tabela DLT temporária acima
-    keys = ["quarto_id"], # A Chave Primária para o MERGE
+    target = TARGET_TABLE,
+    source = "quartos_transient_stream", # Fonte (com schema já aplicado)
+    keys = ["quarto_id"], # Chave Primária
     
-    # Garante que o 'insert_date' original seja mantido em atualizações
+    # Mantém o insert_date original no UPDATE
     except_column_list = ["insert_date"],
     
-    # Garantimos que a tabela seja criada com o schema correto
-    schema = schema_raw_quartos, 
-    
-    # Metadados da tabela no DLT
-    name = TARGET_TABLE_DLT_NAME, # O nome que aparecerá no grafo do DLT
-    comment = f"Tabela Raw de Quartos (SCD Type 1) ingerida da {SOURCE_TABLE}"
+    # Metadados da Tabela Final
+    name = TARGET_TABLE_DLT_NAME,
+    comment = f"Tabela Raw de Quartos (SCD Type 1) ingerida da {SOURCE_TABLE}",
+    tags = {"layer": "raw"} # Tag para a tabela final
 )
