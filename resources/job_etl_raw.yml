@@ -1,0 +1,58 @@
+# resources/job_etl_raw.yml
+# Define o Job (com 7 tarefas) responsável pela ingestão
+# da camada Transient para a camada Raw (SCD Type 1).
+
+resources:
+  jobs:
+    raw_ingestion_job:
+      name: "JOB - 1. Ingestão Transient para Raw (SCD1)"
+      
+      # Define um cluster para este job
+      job_clusters:
+        - job_cluster_key: "raw_cluster"
+          new_cluster:
+            # Ajuste a versão do Spark e o tipo de máquina conforme sua necessidade
+            spark_version: "14.3.x-scala2.12" 
+            node_type_id: "i3.xlarge" # Exemplo de máquina
+            num_workers: 2            # Exemplo de workers
+
+      # Lista de todas as tarefas de ingestão
+      # Como elas não dependem entre si, o Databricks tentará executá-las em paralelo.
+      tasks:
+        - task_key: "ingest_consumos"
+          job_cluster_key: "raw_cluster"
+          python_file:
+            path: "../src/lakehouse/etl_process/raw/consumos/elt.py"
+            
+        - task_key: "ingest_faturas"
+          job_cluster_key: "raw_cluster"
+          python_file:
+            path: "../src/lakehouse/etl_process/raw/faturas/elt.py"
+
+        - task_key: "ingest_hospedes"
+          job_cluster_key: "raw_cluster"
+          python_file:
+            path: "../src/lakehouse/etl_process/raw/hospedes/elt.py"
+
+        - task_key: "ingest_hoteis"
+          job_cluster_key: "raw_cluster"
+          python_file:
+            path: "../src/lakehouse/etl_process/raw/hoteis/elt.py"
+
+        - task_key: "ingest_quartos"
+          job_cluster_key: "raw_cluster"
+          python_file:
+            path: "../src/lakehouse/etl_process/raw/quartos/elt.py"
+
+        - task_key: "ingest_reservas"
+          job_cluster_key: "raw_cluster"
+          python_file:
+            path: "../src/lakehouse/etl_process/raw/reservas/elt.py"
+
+        - task_key: "ingest_reserva_ota"
+          job_cluster_key: "raw_cluster"
+          python_file:
+            path: "../src/lakehouse/etl_process/raw/reserva_ota/elt.py"
+
+      # Define o formato como Multi-Task Job (MTJ)
+      format: "MULTI_TASK"
