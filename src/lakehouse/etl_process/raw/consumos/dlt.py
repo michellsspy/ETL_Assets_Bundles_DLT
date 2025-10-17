@@ -1,35 +1,61 @@
-# Databricks notebook source
 import dlt
+from pyspark.sql import functions as F
+from etl_assets_bundles_dlt.lakehouse.etl_process.raw.consumos.schema import schema_raw_consumos
 
-# --- Camada RAW (Ingestão Pura) ---
-# Esta camada agora apenas anexa (appends) os novos dados recebidos da fonte,
-# criando um log imutável e completo. Este é um processo em batch incremental.
+SOURCE_TABLE = "dev.transient.source_consumos"
+TARGET_TABLE = "dev.raw.consumos"
+TARGET_TABLE_DLT_NAME = "raw_consumos"
 
-@dlt.table(name="hoteis_raw", comment="Carga Full da tabela de hoteis.")
-def hoteis_raw():
-  return spark.read.table("production.transient.source_hoteis")
+@dlt.table(
+    name="consumos_transient_stream",
+    comment=f"Lê a tabela {SOURCE_TABLE} e prepara colunas de controle para o MERGE.",
+    temporary=True
+)
+def consumos_transient_stream():
+    """
+    Prepara o stream de dados da origem.
 
-@dlt.table(name="quartos_raw", comment="Carga Full da tabela de quartos.")
-def quartos_raw():
-  return spark.read.table("production.transient.source_quartos")
+    Esta função lê a tabela de origem e adiciona as colunas de auditoria
+    com o timestamp atual.
 
-# As tabelas abaixo são incrementais (apenas append)
-@dlt.table(name="hospedes_raw", comment="Log incremental de alterações de hóspedes.")
-def hospedes_raw():
-  return spark.readStream.table("production.transient.source_hospedes")
+    - 'insert_date': Recebe o timestamp atual. Será usado APENAS no INSERT.
+    - 'update_date': Recebe o timestamp atual. Será usado tanto no INSERT 
+                     quanto no UPDATE.
 
-@dlt.table(name="reservas_raw", comment="Log incremental de reservas.")
-def reservas_raw():
-  return spark.readStream.table("production.transient.source_reservas")
+    No DLT, é o comportamento padrão que 'insert_date' e 'update_date'
+    sejam iguais no momento da criação do registro.
+    """
+    processing_time = F.current_timestamp()
+    
+    return (
+        spark.readStream.table(SOURCE_TABLE)
+        .withColumn("insert_date", processing_time)
+        .withColumn("update_date", processing_time)
+    )
 
-@dlt.table(name="reservas_canal_raw", comment="Log incremental de canais de reserva.")
-def reservas_canal_raw():
-  return spark.readStream.table("production.transient.source_reservas_canal")
+# Aplica as mudanças na tabela Raw (SCD Type 1)
+dlt.apply_changes(
+    target = TARGET_TABLE,
+    source = "consumos_transient_stream",
+    keys = ["consumo_id"], # Chave Primária
+    
+    # Esta é a mágica:
+    # Diz ao DLT para NUNCA atualizar o 'insert_date' se o registro já existir.
+    except_column_list = ["insert_date"],
+    
+    schema = schema_raw_consumos,
+    name = TARGET_TABLE_DLT_NAME,
+    comment = f"Tabela Raw de Consumos (SCD Type 1) ingerida da {SOURCE_TABLE}"
+)
 
-@dlt.table(name="consumos_raw", comment="Log incremental de consumos.")
-def consumos_raw():
-  return spark.readStream.table("production.transient.source_consumos")
-
-@dlt.table(name="faturas_raw", comment="Log incremental de faturas.")
-def faturas_raw():
-  return spark.readStream.table("production.transient.source_faturas")
+# RESULTADO DA LÓGICA:
+#
+# 1. DADO NOVO (INSERT):
+#    O DLT executa o INSERT.
+#    - 'insert_date' recebe o valor do stream (agora).
+#    - 'update_date' recebe o valor do stream (agora).
+#
+# 2. DADO ATUALIZADO (UPDATE):
+#    O DLT executa o UPDATE.
+#    - 'insert_date' é ignorado (graças ao 'except_column_list').
+#    - 'update_date' recebe o novo valor do stream (agora).
