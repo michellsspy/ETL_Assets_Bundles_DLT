@@ -2,7 +2,7 @@ import dlt
 from pyspark.sql import functions as F
 
 # Esta linha deve funcionar agora
-from lakehouse.etl_process.raw.hospedes.schema import schema_raw_hospedes
+from schema import schema_raw_hospedes
 
 # Define os nomes das tabelas de origem (transient) e destino (raw)
 SOURCE_TABLE = "dev.transient.source_hospedes"

@@ -2,7 +2,7 @@ import dlt
 from pyspark.sql import functions as F
 
 # Esta linha deve funcionar agora
-from lakehouse.etl_process.raw.reservas_ota.schema import schema_raw_reservas_ota
+from schema import schema_raw_reservas_ota
 
 # Define os nomes das tabelas de origem (transient) e destino (raw)
 # ATENÇÃO: Assumindo que a tabela de origem se chama 'source_reserva_ota'
