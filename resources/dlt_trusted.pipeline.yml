@@ -9,7 +9,7 @@ resources:
       target: "trusted"
       serverless: true
       libraries:
-        - notebook:
+        - file:
             path: "../src/lakehouse/etl_process/raw/consumos/dlt.py"
       development: true
       continuous: false
