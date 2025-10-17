@@ -20,8 +20,6 @@ TARGET_TABLE_DLT_NAME = "raw_quartos" # Nome lógico no grafo DLT
 def quartos_transient_stream():
     """
     Prepara o stream de dados da origem (source_quartos).
-    O schema explícito definido no decorador @dlt.table garantirá
-    que o DLT faça o cast correto dos tipos de dados.
     """
     processing_time = F.current_timestamp()
     
@@ -31,17 +29,17 @@ def quartos_transient_stream():
         .withColumn("update_date", processing_time)
     )
 
+
+# 2. FUNÇÃO ALVO (FINAL)
+# Aplica o SCD Type 1 (MERGE) usando a fonte acima
 @dlt.table(
     name = TARGET_TABLE_DLT_NAME,
     comment = f"Tabela Raw de Quartos (SCD Type 1) ingerida da {SOURCE_TABLE}",
-    tags = {"layer": "raw"}
+    table_properties = {"layer": "raw"} # <<< CORREÇÃO AQUI (de 'tags' para 'table_properties')
 )
-
 def raw_quartos_target():
     """
     Função que aplica o SCD Type 1 (apply_changes) na tabela alvo.
-    Esta função consome 'quartos_transient_stream' e 
-    persiste os dados em 'dev.raw.quartos'.
     """
     return dlt.apply_changes(
         target = TARGET_TABLE,
