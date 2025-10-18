@@ -9,7 +9,7 @@ resources:
       target: "refined"
       serverless: true
       libraries:
-        - file:
+        - notebook:
             path: "../src/dlt_pipelines/dlt_refined_pipeline.py"
       development: true
       continuous: false
