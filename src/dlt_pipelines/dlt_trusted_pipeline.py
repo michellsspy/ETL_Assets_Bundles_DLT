@@ -228,7 +228,7 @@ def faturas_trusted():
   comment="Tabela de detalhes de reservas de OTA (Recarga Total)."
 )
 def reservas_ota_trusted():
-  df_reservas_ota_raw = spark.read.table("dev.raw.reserva_ota_raw")
+  df_reservas_ota_raw = spark.read.table("dev.raw.reservas_ota_raw")
 
   df_trusted = df_reservas_ota_raw.select(
       col("ota_reserva_id").cast("INT"),
